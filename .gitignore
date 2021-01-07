@@ -1,0 +1,5 @@
+# Pytorch lightning training logs and checkpoints
+*.yaml
+events.out.*
+*.ckpt
+./NAS_EC/logs/*

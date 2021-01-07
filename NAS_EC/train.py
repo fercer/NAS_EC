@@ -15,7 +15,7 @@ import cnn
 
 def main():
     
-    composed = transforms.Compose([loaders.Rescale((224, 224)), loaders.RandomFlip(), loaders.RandomRotation(center_offset=True), loaders.ToTensor(input_datatype=np.float32, target_datatype=np.float32)])
+    composed = transforms.Compose([loaders.Rescale((224, 224)), loaders.RandomFlip(), loaders.RandomRotation(center_offset=True), loaders.RandomOcclusion(), loaders.AliasLabels((0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1), True, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]), loaders.ToTensor(input_datatype=np.float32, target_datatype=np.int64)])
     stare_ds = loaders.StareDiagnoses(root_dir=r'D:\Test_data\Retinal_images\STARE', transform=composed, dataset_size=128)
 
     stare_n_imgs = len(stare_ds)
@@ -34,7 +34,7 @@ def main():
     net = cnn.ResNet(3, 15)
 
     tb_logger = pl_loggers.TensorBoardLogger('logs/')
-    trainer = pl.Trainer(gpus=None, max_epochs=3, progress_bar_refresh_rate=20, logger=tb_logger)
+    trainer = pl.Trainer(gpus=None, max_epochs=50, progress_bar_refresh_rate=50, logger=tb_logger)
 
     training_res = trainer.fit(net, train_dl, val_dl)
     print(training_res)

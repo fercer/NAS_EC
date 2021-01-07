@@ -70,6 +70,43 @@ class Rescale(object):
         return res_image, res_target
 
 
+class RandomOcclusion(object):
+    """Include a random occlusion (black rectangle) to the input image.
+
+    Args:
+        output_size (tuple or int): Desired occlusion size. If int, square occlusion is made.
+    """
+    def __init__(self, occlusion_size=0):
+        assert isinstance(occlusion_size, (int, tuple))
+        if isinstance(occlusion_size, int):
+            self.occlusion_size = (occlusion_size, occlusion_size)
+        else:
+            assert len(occlusion_size) == 2
+            self.occlusion_size = occlusion_size
+
+    def __call__(self, sample):
+        try:
+            image, target = sample
+
+        except ValueError:
+            image = sample
+            target = None
+
+        h, w = image.shape[:2]
+        if self.occlusion_size[0] < 1 and self.occlusion_size[1] < 1:
+            occ_h, occ_w = (np.random.randint(1, int(h * 0.5)), np.random.randint(1, int(w * 0.5)))
+
+        else:
+            occ_h, occ_w = self.occlusion_size
+
+        top = np.random.randint(0, h - occ_h)
+        left = np.random.randint(0, w - occ_w)
+
+        image[top:(top + occ_h), left:(left + occ_w)] = 0
+
+        return image, target
+
+
 class RandomCrop(object):
     """Crop randomly the image in a sample.
 
@@ -107,8 +144,8 @@ class RandomCrop(object):
         if isinstance(target, tuple): # positions are stored as tuples
             if len(target) < 3:
                 disc_size = []
-                pos = target 
-            else: 
+                pos = target
+            else:
                 disc_size = list(target[-3:])
                 pos = target[:-3]
 
@@ -260,6 +297,47 @@ class ColorConvert(object):
 
         if self.target_weight is not None and isinstance(target, np.ndarray) and target.ndim > 1 and target.shape[-2] > 1 and target.shape[-1] > 1:
             target = target[..., 0] * self.target_weights[0] + target[..., 1] * self.target_weights[1] + target[..., 2] * self.target_weights[2]
+
+        return image, target
+
+
+class AliasLabels(object):
+    """Change the target labels for an alias."""
+    def __init__(self, labels_alias, onehot_encode=False, true_class=None):
+        assert isinstance(labels_alias, (tuple, list, np.ndarray))
+        self.labels_alias = labels_alias if isinstance(labels_alias, np.ndarray) else np.array(labels_alias, dtype=np.float64)
+        self.onehot_encode = onehot_encode
+        self.true_class = true_class
+
+    def __call__(self, sample):
+        try:
+            image, target = sample
+
+        except ValueError:
+            image = sample
+            target = None
+
+        if target is None:
+            return image, None
+
+        if isinstance(target, np.ndarray):
+            target = self.labels_alias[target]
+
+            if self.onehot_encode:
+                if target.ndim > 2:
+                    target = np.argmax(target, axis=target.ndim-1)
+
+                else:
+                    target = np.argmax(target)
+
+        else:
+            target = self.labels_alias[np.array(target, dtype=np.int64)]
+
+            if self.onehot_encode:
+                target = np.argmax(target)
+
+        if isinstance(self.true_class, list):
+            target = target in self.true_class
 
         return image, target
 
@@ -507,13 +585,15 @@ class HRFOpticNerve(Image2PositionsDataset):
 
 
 if __name__ == '__main__':
-    from matplotlib.patches import Circle
+    import matplotlib.pyplot as plt
     print('Testing datasets and dataloaders')
 
     # composed = transforms.Compose([Rescale((565, 565)), RandomRotation(center_offset=False), RandomFlip(), ToTensor()])
-    composed = transforms.Compose([Rescale((224, 224)), RandomFlip(), RandomRotation(center_offset=False), ToTensor()])
+    composed = transforms.Compose([Rescale((224, 224)), RandomFlip(), RandomRotation(center_offset=False), RandomOcclusion(), AliasLabels((0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1), True, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]), ToTensor()])
     stare_ds = StareDiagnoses(root_dir=r'D:\Test_data\Retinal_images\STARE', transform=composed)
     dataloader = DataLoader(stare_ds, batch_size=8, shuffle=True, num_workers=0)
 
     for i_batch, (image, target) in enumerate(dataloader):
         print(i_batch, image.shape, target)
+        plt.imshow(image[0].permute(1, 2, 0))
+        plt.show()

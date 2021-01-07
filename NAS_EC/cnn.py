@@ -63,7 +63,7 @@ class CNNBase(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         x, y = batch
         y_hat = self(x)
-        loss = F.binary_cross_entropy_with_logits(y_hat, y)
+        loss = F.cross_entropy(y_hat, y)
         # loss = F.mse_loss(y_hat, y)
 
         self.train_acc(y_hat, y)
@@ -74,7 +74,7 @@ class CNNBase(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         x, y = batch
         y_hat = self(x)
-        val_loss = F.binary_cross_entropy_with_logits(y_hat, y)
+        val_loss = F.cross_entropy(y_hat, y)
         # val_loss = F.mse_loss(y_hat, y)
 
         self.valid_acc(y_hat, y)
@@ -85,7 +85,7 @@ class CNNBase(pl.LightningModule):
     def test_step(self, batch, batch_idx):
         x, y = batch
         y_hat = self(x)
-        loss = F.binary_cross_entropy_with_logits(y_hat, y)
+        loss = F.cross_entropy(y_hat, y)
         # loss = F.mse_loss(y_hat, y)
 
         self.test_acc(y_hat, y)
